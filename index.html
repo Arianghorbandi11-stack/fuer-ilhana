@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Für Ilhana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;600;800&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --nacht: #0f0a1a;
+    --nacht-hell: #26173f;
+    --rose: #ff6b9d;
+    --rose-hell: #ffb3c8;
+    --gold: #ffcf7a;
+    --lila: #b99bff;
+    --mint: #6ee7b7;
+    --text: #fbeaf0;
+    --leise: #9c8cb8;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; margin: 0; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    background: radial-gradient(ellipse at 50% 115%, var(--nacht-hell), var(--nacht) 62%);
+    background-color: var(--nacht);
+    color: var(--text);
+    font-family: "Nunito", system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #himmel { z-index: 0; }
+  #fx { z-index: 25; }
+
+  main { position: relative; z-index: 2; height: 100%; }
+
+  .schritt {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+  .schritt.aktiv { display: flex; animation: rein .9s ease both; }
+  @keyframes rein { from { opacity: 0; filter: blur(8px); transform: scale(.98); } to { opacity: 1; filter: none; transform: none; } }
+  .innen {
+    margin: auto 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.4rem;
+    width: 100%;
+  }
+
+  .hand { font-family: "Caveat", "Segoe Script", cursive; font-weight: 700; margin: 0; line-height: 1.1; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .kommentar { font-family: "JetBrains Mono", monospace; font-size: .85rem; color: var(--leise); }
+  .gross { font-size: clamp(2.8rem, 11vw, 5.2rem); min-height: 1.1em; }
+
+  /* ---------- Ton-Knopf ---------- */
+  #ton {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    right: 12px;
+    z-index: 40;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(185, 155, 255, .3);
+    background: rgba(15, 10, 26, .6);
+    color: var(--text);
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .6s;
+  }
+  #ton.an { opacity: 1; pointer-events: auto; }
+
+  /* ---------- Schritt 0: Start ---------- */
+  .start-herz {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    width: clamp(120px, 34vw, 170px);
+    animation: schlag 1.2s ease-in-out infinite;
+    filter: drop-shadow(0 0 22px rgba(255, 107, 157, .7));
+  }
+  .start-herz svg { width: 100%; display: block; }
+  @keyframes schlag {
+    0%, 100% { transform: scale(1); }
+    12% { transform: scale(1.1); }
+    24% { transform: scale(.98); }
+    36% { transform: scale(1.06); }
+  }
+  .fuer { font-size: clamp(2.4rem, 9vw, 3.6rem); }
+  .hinweis { color: var(--leise); font-size: .95rem; }
+
+  /* ---------- Schritt 1: Terminal ---------- */
+  .terminal {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: clamp(.74rem, 3.1vw, .95rem);
+    width: min(560px, 100%);
+    min-height: 10.5em;
+    background: rgba(8, 5, 16, .65);
+    border: 1px solid rgba(185, 155, 255, .22);
+    border-radius: 12px;
+    padding: .9rem 1rem;
+    text-align: left;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+  }
+  .t-zeile { white-space: pre-wrap; color: var(--leise); line-height: 1.7; }
+  .t-zeile .ok { color: var(--mint); font-weight: 600; }
+  .t-zeile.warn { color: var(--gold); }
+  .t-zeile.code { color: var(--text); }
+  .fn { color: var(--lila); } .str { color: var(--gold); } .pl { color: var(--text); } .pr { color: var(--leise); }
+  .caret {
+    display: inline-block; width: .55ch; height: 1.05em; vertical-align: -.15em;
+    background: var(--rose); animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .glitch { animation: glitch .8s steps(2) 1 both; }
+  .leuchten { text-shadow: 0 0 28px rgba(255, 107, 157, .55); }
+  @keyframes glitch {
+    0%   { text-shadow: 3px 0 var(--lila), -3px 0 var(--rose); transform: translate(0); }
+    20%  { transform: translate(-3px, 1px); }
+    40%  { text-shadow: -4px 0 var(--lila), 4px 0 var(--gold); transform: translate(3px, -1px) skewX(-4deg); }
+    60%  { transform: translate(-1px, 2px); }
+    80%  { text-shadow: 1px 0 var(--lila), -1px 0 var(--rose); }
+    100% { text-shadow: 0 0 28px rgba(255, 107, 157, .55); transform: none; }
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    font: 800 1.15rem "Nunito", system-ui, sans-serif;
+    border: 0;
+    border-radius: 999px;
+    padding: .95rem 2.3rem;
+    cursor: pointer;
+    transition: transform .35s cubic-bezier(.34, 1.56, .64, 1), opacity .4s, background .2s, box-shadow .3s;
+  }
+  .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+  .haupt { background: var(--rose); color: #fff; box-shadow: 0 0 32px rgba(255, 107, 157, .45); }
+  .haupt:hover { background: #ff82ad; }
+  .gold { background: var(--gold); color: #3a2300; box-shadow: 0 0 32px rgba(255, 207, 122, .4); }
+  .neben { background: transparent; color: var(--text); border: 2px solid rgba(251, 234, 240, .35); }
+  .allein { animation: glow 1.4s ease-in-out infinite; }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 30px rgba(255, 107, 157, .45); }
+    50% { box-shadow: 0 0 60px rgba(255, 107, 157, .9), 0 0 110px rgba(255, 107, 157, .35); }
+  }
+  .knoepfe { display: flex; gap: 1.2rem; align-items: center; justify-content: center; flex-wrap: wrap; min-height: 6.5rem; }
+
+  .versteckt { opacity: 0; pointer-events: none; transform: translateY(10px); transition: opacity .7s, transform .7s; }
+  .sichtbar { opacity: 1; pointer-events: auto; transform: none; }
+
+  /* ---------- Schritt 3: Liebeserklärung ---------- */
+  .zeile { font-size: clamp(1.6rem, 6.4vw, 2.6rem); font-weight: 500; max-width: 26ch; }
+  .zeile .datum { color: var(--gold); font-weight: 700; }
+  .zeile .kose { color: var(--rose-hell); font-weight: 700; }
+  .zeile .unendlich { color: var(--gold); font-weight: 700; }
+  .zaehler { display: flex; flex-direction: column; align-items: center; gap: .25rem; }
+  .sek {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 800;
+    font-size: clamp(1.8rem, 8.5vw, 3.4rem);
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 24px rgba(255, 207, 122, .45);
+    letter-spacing: .01em;
+  }
+  .aufteilung { font-family: "JetBrains Mono", monospace; font-size: clamp(.72rem, 2.8vw, .88rem); color: var(--leise); }
+
+  /* ---------- Schritt 4: Herz ---------- */
+  .herz-box {
+    position: relative;
+    width: min(430px, 84vw);
+    aspect-ratio: 100 / 90;
+    margin: .5rem 0;
+    transition: opacity .8s;
+  }
+  .herz-box .frage {
+    position: absolute;
+    left: 50%;
+    top: 43%;
+    transform: translate(-50%, -50%);
+    width: 58%;
+    font-size: clamp(1.6rem, 6.8vw, 2.6rem);
+    color: #fff;
+    opacity: 0;
+    transition: opacity 1.2s;
+    text-shadow: 0 0 18px rgba(15, 10, 26, .9), 0 0 4px rgba(15, 10, 26, .9);
+  }
+  .herz-box .frage.an { opacity: 1; }
+
+  .blume {
+    position: absolute;
+    width: var(--g);
+    height: var(--g);
+    transform: translate(-50%, -50%) scale(0) rotate(-60deg);
+    transition: transform .8s cubic-bezier(.34, 1.56, .64, 1);
+    z-index: 3;
+  }
+  .blume.auf { transform: translate(-50%, -50%) scale(1) rotate(var(--r)); }
+  .blume.weg { transform: translate(-50%, -50%) scale(0) rotate(200deg); transition: transform .6s ease-in; }
+  .blume svg { width: 100%; height: 100%; animation: wiegen 3.5s ease-in-out infinite alternate; animation-delay: var(--d); }
+  @keyframes wiegen { from { transform: rotate(-9deg); } to { transform: rotate(9deg); } }
+
+  .ende {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 11vh);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+    z-index: 30;
+    text-align: center;
+  }
+  .ende .status { font-family: "JetBrains Mono", monospace; color: var(--mint); font-weight: 600; }
+  .ende .seit { font-family: "JetBrains Mono", monospace; color: var(--leise); font-size: .9rem; }
+  .ende .ps { font-family: "JetBrains Mono", monospace; color: var(--gold); font-size: clamp(.7rem, 3.2vw, .95rem); padding: 0 .8rem; min-height: 1.4em; margin-top: .2rem; }
+  .nochmal {
+    margin-top: .6rem;
+    background: none; border: 0; color: var(--leise);
+    font: 600 .85rem "JetBrains Mono", monospace; cursor: pointer; text-decoration: underline;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .schritt.aktiv, .start-herz, .caret, .blume svg, .allein, .glitch { animation: none; }
+    .btn, .versteckt, .blume, .frage, .herz-box { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<canvas id="himmel"></canvas>
+<canvas id="fx"></canvas>
+<button id="ton" aria-label="Ton aus">🔊</button>
+
+<main>
+  <!-- 0: Start -->
+  <section class="schritt aktiv" id="s0">
+    <div class="innen">
+      <button class="start-herz" id="startHerz" aria-label="Starten">
+        <svg viewBox="0 0 100 90"><path fill="#ff6b9d" d="M50 86 C 22 66, 3 47, 3 28 C 3 13, 14 3, 28 3 C 38 3, 46 9, 50 18 C 54 9, 62 3, 72 3 C 86 3, 97 13, 97 28 C 97 47, 78 66, 50 86 Z"/></svg>
+      </button>
+      <h1 class="hand fuer" id="fuer"></h1>
+      <div class="hinweis">Tipp aufs Herz · Ton an 🔊</div>
+    </div>
+  </section>
+
+  <!-- 1: Boot + Hallo -->
+  <section class="schritt" id="s1">
+    <div class="innen">
+      <div class="terminal" id="terminal"></div>
+      <h1 class="hand gross" id="hallo"></h1>
+      <button class="btn haupt versteckt" id="btnHallo"></button>
+    </div>
+  </section>
+
+  <!-- 2: Darf ich fragen? -->
+  <section class="schritt" id="s2">
+    <div class="innen">
+      <div class="kommentar">// frage 1 von 2</div>
+      <h1 class="hand gross">Kann ich dich was fragen?</h1>
+      <div class="knoepfe">
+        <button class="btn haupt" id="ja1">Ja</button>
+        <button class="btn neben" id="nein1">Nein</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3: Liebeserklärung -->
+  <section class="schritt" id="s3">
+    <div class="innen">
+      <p class="hand zeile versteckt" id="l1"></p>
+      <p class="hand zeile versteckt" id="l2"></p>
+      <div class="zaehler versteckt" id="zaehler">
+        <div class="kommentar">// das sind bis jetzt</div>
+        <div class="sek" id="sek">0</div>
+        <div class="kommentar">Sekunden. Und es werden immer mehr.</div>
+        <div class="aufteilung" id="aufteilung"></div>
+      </div>
+      <p class="hand zeile versteckt" id="l3"></p>
+      <p class="hand zeile versteckt" id="l4"></p>
+      <button class="btn haupt versteckt" id="weiter">Weiter</button>
+    </div>
+  </section>
+
+  <!-- 4: Die Frage -->
+  <section class="schritt" id="s4">
+    <div class="innen">
+      <div class="kommentar versteckt" id="frage2">// frage 2 von 2</div>
+      <div class="herz-box" id="herzBox">
+        <h1 class="hand frage" id="frage"></h1>
+      </div>
+      <div class="knoepfe versteckt" id="finalKnoepfe">
+        <button class="btn haupt" id="jaA">Ja ❤</button>
+        <button class="btn gold" id="jaB">Auf jeden Fall ✨</button>
+      </div>
+    </div>
+    <div class="ende versteckt" id="ende">
+      <div class="status">beziehungsstatus = "offiziell" ✓</div>
+      <div class="seit" id="seitZusammen"></div>
+      <div class="seit" id="seit"></div>
+      <div class="ps" id="ps"></div>
+      <button class="nochmal" id="nochmal">↻ nochmal abspielen</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  // ================= HIER ANPASSEN =================
+  const SIE      = "Ilhana";
+  const ICH      = "Arian";
+  const DATUM    = { tag: 22, monat: 5, jahr: 2025 };
+  const KOSENAME = "mi harto";
+  const FRAGE    = "Willst du ganz offiziell meine Freundin sein?";
+  const ZUSAMMEN_SEIT = "August 2025";
+  const PS       = "// eigentlich sind wir schon verheiratet 💍";
+  // ================================================
+
+  const DATUM_TEXT = `${String(DATUM.tag).padStart(2, "0")}.${String(DATUM.monat).padStart(2, "0")}.${DATUM.jahr}`;
+  const START = new Date(DATUM.jahr, DATUM.monat - 1, DATUM.tag, 0, 0, 0);
+
+  const ruhig = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = id => document.getElementById(id);
+  const warte = ms => new Promise(r => setTimeout(r, ruhig ? Math.min(ms, 150) : ms));
+  const FARBEN = ["#ff6b9d", "#ffb3c8", "#ffcf7a", "#b99bff", "#ff8fab"];
+  const zufall = arr => arr[(Math.random() * arr.length) | 0];
+
+  function zeige(id) {
+    document.querySelectorAll(".schritt").forEach(s => s.classList.remove("aktiv"));
+    $(id).classList.add("aktiv");
+  }
+  function einblenden(el) { el.classList.remove("versteckt"); el.classList.add("sichtbar"); }
+  function ausblenden(el) { el.classList.remove("sichtbar"); el.classList.add("versteckt"); }
+
+  async function tippeText(ziel, text, tempo) {
+    if (ruhig) { ziel.append(text); return; }
+    const knoten = document.createTextNode("");
+    ziel.appendChild(knoten);
+    for (const ch of text) { knoten.data += ch; await warte(tempo); }
+  }
+  async function tippeTokens(ziel, tokens, tempo) {
+    for (const tk of tokens) {
+      const span = document.createElement("span");
+      span.className = tk.cls;
+      ziel.appendChild(span);
+      await tippeText(span, tk.txt, tempo);
+    }
+  }
+
+  // ======================================================
+  //  MUSIK (komplett selbst erzeugt, Spieluhr-Sound)
+  // ======================================================
+  let ac = null, master = null, hall = null, stumm = false;
+
+  function audioStart() {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain();
+      master.gain.value = 0.9;
+      master.connect(ac.destination);
+
+      hall = ac.createDelay();
+      hall.delayTime.value = 0.33;
+      const rueck = ac.createGain(); rueck.gain.value = 0.38;
+      const filter = ac.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 2800;
+      const nass = ac.createGain(); nass.gain.value = 0.45;
+      hall.connect(filter); filter.connect(rueck); rueck.connect(hall);
+      filter.connect(nass); nass.connect(master);
+    } catch (e) { ac = null; }
+  }
+
+  function ton(midi, wann, dauer = 1.6, laut = 0.1, typ = "triangle") {
+    if (!ac) return;
+    const t = wann ?? ac.currentTime;
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    const o = ac.createOscillator(), o2 = ac.createOscillator();
+    const g = ac.createGain(), g2 = ac.createGain();
+    o.type = typ; o.frequency.value = f;
+    o2.type = "sine"; o2.frequency.value = f * 2; g2.gain.value = 0.22;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(laut, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dauer);
+    o.connect(g); o2.connect(g2); g2.connect(g);
+    g.connect(master); g.connect(hall);
+    o.start(t); o2.start(t); o.stop(t + dauer + 0.05); o2.stop(t + dauer + 0.05);
+  }
+
+  const AKKORDE = [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 65]];
+  const MUSTER = [0, 1, 2, 3, 4, 3, 2, 1];
+  let musikSchritt = 0, naechsteZeit = 0, extraGlitzer = false;
+
+  function musikStart() {
+    if (!ac) return;
+    naechsteZeit = ac.currentTime + 0.3;
+    setInterval(() => {
+      while (naechsteZeit < ac.currentTime + 0.25) {
+        const akkord = AKKORDE[Math.floor(musikSchritt / 8) % AKKORDE.length];
+        const i = MUSTER[musikSchritt % 8];
+        const note = i < 4 ? akkord[i] + 12 : akkord[0] + 24;
+        ton(note, naechsteZeit, 1.4, 0.045);
+        if (musikSchritt % 8 === 0) ton(akkord[0] - 12, naechsteZeit, 2.6, 0.06, "sine");
+        if (extraGlitzer && musikSchritt % 2 === 0) ton(note + 12, naechsteZeit + 0.15, 0.9, 0.02, "sine");
+        naechsteZeit += 0.3;
+        musikSchritt++;
+      }
+    }, 60);
+  }
+
+  const klick = () => { if (!ac) return; const t = ac.currentTime; ton(84, t, 0.6, 0.07, "sine"); ton(88, t + 0.07, 0.7, 0.06, "sine"); };
+  const neinTon = () => { if (!ac) return; ton(50, ac.currentTime, 0.7, 0.07, "sine"); };
+  const bluemchenTon = i => { if (!ac) return; ton([72, 74, 76, 79, 81, 84][i % 6] + 12, ac.currentTime, 0.8, 0.035, "sine"); };
+  const finaleTon = () => {
+    if (!ac) return;
+    const t = ac.currentTime;
+    [72, 76, 79, 83, 84, 88, 91, 96].forEach((n, i) => ton(n, t + i * 0.07, 2, 0.08));
+    [60, 64, 67, 71, 76].forEach(n => ton(n, t + 0.7, 3.5, 0.06, "sine"));
+  };
+
+  $("ton").addEventListener("click", () => {
+    stumm = !stumm;
+    if (master) master.gain.setTargetAtTime(stumm ? 0 : 0.9, ac.currentTime, 0.05);
+    $("ton").textContent = stumm ? "🔇" : "🔊";
+    $("ton").setAttribute("aria-label", stumm ? "Ton an" : "Ton aus");
+  });
+
+  // ======================================================
+  //  SCHRITT 0 + 1: Start, Boot-Sequenz, Hallo
+  // ======================================================
+  $("fuer").textContent = `Für ${SIE}`;
+  $("btnHallo").textContent = `Hallo ${ICH} 👋`;
+
+  $("startHerz").addEventListener("click", () => {
+    audioStart();
+    musikStart();
+    klick();
+    $("ton").classList.add("an");
+    const r = $("startHerz").getBoundingClientRect();
+    herzFeuerwerk(r.left + r.width / 2, r.top + r.height / 2, 0.22);
+    zeige("s1");
+    boot();
+  }, { once: true });
+
+  async function boot() {
+    const term = $("terminal");
+    const zeile = async (text, cls = "") => {
+      const d = document.createElement("div");
+      d.className = "t-zeile " + cls;
+      term.appendChild(d);
+      await tippeText(d, text, 16);
+      return d;
+    };
+
+    await warte(500);
+    await zeile(`> ${SIE.toLowerCase()}.exe wird gestartet …`);
+    await warte(300);
+    const v = await zeile("> verbinde mit herz.local … ");
+    await warte(600);
+    const ok = document.createElement("span"); ok.className = "ok"; ok.textContent = "ok"; v.appendChild(ok);
+    await warte(250);
+
+    const lade = await zeile("> lade gefühle ");
+    const balken = document.createElement("span");
+    lade.appendChild(balken);
+    const breite = 12;
+    for (let p = 0; p <= breite; p++) {
+      balken.textContent = "[" + "█".repeat(p) + "·".repeat(breite - p) + "] " + Math.round(p / breite * 100) + "%";
+      if (ac && p % 3 === 0) ton(96, ac.currentTime, 0.12, 0.015, "sine");
+      await warte(p > 9 ? 170 : 70);
+    }
+    await warte(200);
+    await zeile("> gefühle = ∞   (integer overflow)", "warn");
+    await warte(600);
+
+    const code = document.createElement("div");
+    code.className = "t-zeile code";
+    term.appendChild(code);
+    const pr = document.createElement("span"); pr.className = "pr"; pr.textContent = ">>> "; code.appendChild(pr);
+    const caret = document.createElement("span"); caret.className = "caret";
+    await tippeTokens(code, [
+      { txt: "print", cls: "fn" }, { txt: "(", cls: "pl" },
+      { txt: `"Hallo ${SIE}"`, cls: "str" }, { txt: ")", cls: "pl" },
+    ], 55);
+    code.appendChild(caret);
+    await warte(700);
+    caret.remove();
+
+    const hallo = $("hallo");
+    await tippeText(hallo, `Hallo ${SIE}`, 85);
+    hallo.classList.add("glitch", "leuchten");
+    klick();
+    const r = hallo.getBoundingClientRect();
+    funkenRegen(r.left + r.width / 2, r.top + r.height / 2, 40);
+    await warte(700);
+    einblenden($("btnHallo"));
+  }
+
+  $("btnHallo").addEventListener("click", () => { klick(); zeige("s2"); });
+
+  // ======================================================
+  //  SCHRITT 2: Nein schrumpft bis er weg ist
+  // ======================================================
+  const ja1 = $("ja1"), nein1 = $("nein1");
+  const NEIN_TEXTE = ["Nein", "Sicher?", "Wirklich?", "Bitte? 🥺", "…"];
+  let neinKlicks = 0;
+
+  nein1.addEventListener("click", () => {
+    neinKlicks++;
+    neinTon();
+    const g = 1 - neinKlicks * 0.2;
+    ja1.style.transform = `scale(${1 + neinKlicks * 0.16})`;
+
+    if (g <= 0.05) {
+      nein1.style.transform = "scale(0) rotate(90deg)";
+      nein1.style.opacity = "0";
+      nein1.style.pointerEvents = "none";
+      setTimeout(() => { nein1.style.display = "none"; ja1.classList.add("allein"); }, 450);
+      return;
+    }
+    const dx = (Math.random() - 0.5) * 60, dy = (Math.random() - 0.5) * 24;
+    nein1.textContent = NEIN_TEXTE[Math.min(neinKlicks, NEIN_TEXTE.length - 1)];
+    nein1.style.transform = `translate(${dx}px, ${dy}px) scale(${g})`;
+  });
+
+  ja1.addEventListener("click", () => { klick(); zeige("s3"); liebeserklaerung(); });
+
+  // ======================================================
+  //  SCHRITT 3: Liebeserklärung mit Live-Sekundenzähler
+  // ======================================================
+  function fuellen(el, teile) {
+    el.textContent = "";
+    teile.forEach(([text, cls]) => {
+      const s = document.createElement("span");
+      if (cls) s.className = cls;
+      s.textContent = text;
+      el.appendChild(s);
+    });
+  }
+
+  function sekundenSeitStart() { return Math.max(0, Math.floor((Date.now() - START.getTime()) / 1000)); }
+  function aufteilungText(s) {
+    const tage = Math.floor(s / 86400), std = Math.floor(s % 86400 / 3600);
+    const min = Math.floor(s % 3600 / 60), sek = s % 60;
+    return `${tage} Tage · ${std} Std · ${min} Min · ${sek} Sek`;
+  }
+
+  function zaehlerStarten() {
+    const sekEl = $("sek"), aufEl = $("aufteilung");
+    const ziel = sekundenSeitStart();
+    const dauer = ruhig ? 0 : 2400, t0 = performance.now();
+    function hoch(now) {
+      const p = dauer ? Math.min(1, (now - t0) / dauer) : 1;
+      const wert = Math.floor(ziel * (1 - Math.pow(1 - p, 3)));
+      sekEl.textContent = wert.toLocaleString("de-DE");
+      aufEl.textContent = aufteilungText(wert);
+      if (p < 1) requestAnimationFrame(hoch);
+      else setInterval(() => {
+        const s = sekundenSeitStart();
+        sekEl.textContent = s.toLocaleString("de-DE");
+        aufEl.textContent = aufteilungText(s);
+      }, 1000);
+    }
+    requestAnimationFrame(hoch);
+  }
+
+  async function liebeserklaerung() {
+    fuellen($("l1"), [["Seit dem "], [DATUM_TEXT, "datum"]]);
+    fuellen($("l2"), [["bist du mir keine einzige Sekunde aus dem Kopf gegangen."]]);
+    fuellen($("l3"), [["Ich liebe dich "], ["unendlich", "unendlich"], [", "], [KOSENAME, "kose"], ["."]]);
+    fuellen($("l4"), [["Deswegen wollte ich dich was fragen …"]]);
+
+    await warte(600);
+    einblenden($("l1")); await warte(1500);
+    einblenden($("l2")); await warte(1800);
+    einblenden($("zaehler")); zaehlerStarten(); await warte(3200);
+    einblenden($("l3"));
+    const r = $("l3").getBoundingClientRect();
+    funkenRegen(r.left + r.width / 2, r.top + r.height / 2, 30);
+    await warte(1900);
+    einblenden($("l4")); await warte(1200);
+    einblenden($("weiter"));
+  }
+
+  $("weiter").addEventListener("click", () => { klick(); zeige("s4"); frageZeigen(); });
+
+  // ======================================================
+  //  SCHRITT 4: Partikel-Herz + Blumen + Frage
+  // ======================================================
+  const BLUMEN = [
+    { x: 50, y: 12, g: 42 }, { x: 22, y: -3, g: 34 }, { x: 78, y: -3, g: 34 },
+    { x: 1, y: 20, g: 38 },  { x: 99, y: 20, g: 38 }, { x: -2, y: 50, g: 30 },
+    { x: 102, y: 50, g: 30 },{ x: 15, y: 74, g: 36 }, { x: 85, y: 74, g: 36 },
+    { x: 32, y: 92, g: 28 }, { x: 68, y: 92, g: 28 }, { x: 50, y: 106, g: 44 },
+  ];
+  const BLATT_FARBEN = ["#ffb3c8", "#c9b3ff", "#ffe1ea", "#ff8fab", "#ffd6a5"];
+
+  function blumeSVG(farbe) {
+    let b = "";
+    for (let i = 0; i < 5; i++) b += `<ellipse cx="0" cy="-9" rx="5.8" ry="9" transform="rotate(${i * 72})" fill="${farbe}"/>`;
+    return `<svg viewBox="-20 -20 40 40" aria-hidden="true">${b}<circle r="4.6" fill="#ffcf7a"/><circle r="2" fill="#ff9f5a" opacity=".6"/></svg>`;
+  }
+
+  let blumenEls = [];
+
+  async function frageZeigen() {
+    await warte(80);
+    teilchenInit();
+    modus = "herz";
+    pAlphaZiel = 1;
+
+    const box = $("herzBox");
+    blumenEls = BLUMEN.map((b, i) => {
+      const el = document.createElement("div");
+      el.className = "blume";
+      el.style.left = b.x + "%";
+      el.style.top = b.y + "%";
+      el.style.setProperty("--g", b.g + "px");
+      el.style.setProperty("--r", (Math.random() * 60 - 30) + "deg");
+      el.style.setProperty("--d", (-Math.random() * 3) + "s");
+      el.innerHTML = blumeSVG(BLATT_FARBEN[i % BLATT_FARBEN.length]);
+      box.appendChild(el);
+      return el;
+    });
+
+    await warte(1800);
+    einblenden($("frage2"));
+    $("frage").textContent = FRAGE;
+    $("frage").classList.add("an");
+    for (let i = 0; i < blumenEls.length; i++) {
+      blumenEls[i].classList.add("auf");
+      bluemchenTon(i);
+      await warte(130);
+    }
+    await warte(900);
+    einblenden($("finalKnoepfe"));
+  }
+
+  $("jaA").addEventListener("click", finale);
+  $("jaB").addEventListener("click", finale);
+
+  let finaleLaeuft = false;
+  async function finale() {
+    if (finaleLaeuft) return;
+    finaleLaeuft = true;
+    finaleTon();
+    extraGlitzer = true;
+    if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 120]);
+
+    ausblenden($("finalKnoepfe"));
+    ausblenden($("frage2"));
+    $("frage").classList.remove("an");
+    blumenEls.forEach((b, i) => setTimeout(() => b.classList.add("weg"), i * 40));
+
+    // Herz explodiert
+    modus = "frei";
+    for (const p of teilchen) {
+      const w = Math.random() * Math.PI * 2, v = 4 + Math.random() * 14;
+      p.vx = Math.cos(w) * v; p.vy = Math.sin(w) * v;
+    }
+
+    // Herz-Feuerwerk
+    for (let i = 0; i < 7; i++) {
+      setTimeout(() => {
+        herzFeuerwerk(innerWidth * (0.15 + Math.random() * 0.7), innerHeight * (0.12 + Math.random() * 0.45), 0.2 + Math.random() * 0.12);
+        if (ac) ton(zufall([84, 88, 91, 96]), ac.currentTime, 1.2, 0.04, "sine");
+      }, 250 + i * 380);
+    }
+
+    bluetenRegen = true;
+    await warte(1000);
+    $("herzBox").style.opacity = "0";
+    await textZieleBerechnen();
+    modus = "text";
+
+    await warte(1600);
+    const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    $("seitZusammen").textContent = `// zusammen seit ${ZUSAMMEN_SEIT}`;
+    $("seit").textContent = `// offiziell seit ${heute}`;
+    const nochmal = $("nochmal");
+    nochmal.style.visibility = "hidden";
+    einblenden($("ende"));
+
+    await warte(2200);
+    await tippeText($("ps"), PS, 55);
+    klick();
+    const r = $("ps").getBoundingClientRect();
+    funkenRegen(r.left + r.width / 2, r.top, 18);
+    await warte(900);
+    nochmal.style.visibility = "visible";
+  }
+
+  $("nochmal").addEventListener("click", () => location.reload());
+
+  // ======================================================
+  //  GRAFIK: Leinwände
+  // ======================================================
+  function leinwand(id) {
+    const cv = $(id), ctx = cv.getContext("2d");
+    function groesse() {
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    groesse(); addEventListener("resize", groesse);
+    return ctx;
+  }
+  const himmel = leinwand("himmel");
+  const fx = leinwand("fx");
+
+  function herzForm(ctx, x, y, s, farbe, alpha) {
+    ctx.globalAlpha = alpha; ctx.fillStyle = farbe;
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.3);
+    ctx.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3);
+    ctx.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.8, x, y + s);
+    ctx.bezierCurveTo(x, y + s * 0.8, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3);
+    ctx.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3);
+    ctx.fill();
+  }
+
+  // Herzkurve: x = 16 sin³t, y = 13 cos t − 5 cos 2t − 2 cos 3t − cos 4t
+  const herzX = t => 16 * Math.pow(Math.sin(t), 3);
+  const herzY = t => -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+
+  // ---------- Hintergrund: Sterne, Sternschnuppen, Herzen, Blüten ----------
+  const sterne = Array.from({ length: innerWidth < 600 ? 90 : 160 }, () => ({
+    x: Math.random(), y: Math.random(), r: 0.4 + Math.random() * 1.3,
+    ph: Math.random() * 6.28, sp: 0.0008 + Math.random() * 0.002,
+  }));
+  let schnuppen = [];
+  let wolke = ruhig ? [] : Array.from({ length: 10 }, () => schwebend(true));
+  let blueten = [];
+  let bluetenRegen = false;
+
+  function schwebend(irgendwo) {
+    return {
+      x: Math.random() * innerWidth,
+      y: irgendwo ? Math.random() * innerHeight : innerHeight + 20,
+      vx: (Math.random() - 0.5) * 0.3, vy: -(0.25 + Math.random() * 0.5),
+      s: 7 + Math.random() * 11, farbe: zufall(FARBEN), alpha: 0.08 + Math.random() * 0.22,
+    };
+  }
+
+  function himmelZeichnen(now) {
+    himmel.clearRect(0, 0, innerWidth, innerHeight);
+
+    for (const s of sterne) {
+      himmel.globalAlpha = ruhig ? 0.6 : 0.25 + 0.6 * (Math.sin(now * s.sp + s.ph) + 1) / 2;
+      himmel.fillStyle = "#fff";
+      himmel.beginPath(); himmel.arc(s.x * innerWidth, s.y * innerHeight, s.r, 0, 6.283); himmel.fill();
+    }
+
+    if (!ruhig && Math.random() < 0.004) {
+      schnuppen.push({ x: Math.random() * innerWidth * 0.8, y: Math.random() * innerHeight * 0.4, vx: 9 + Math.random() * 6, vy: 3 + Math.random() * 3, leben: 45 });
+    }
+    schnuppen = schnuppen.filter(s => s.leben > 0);
+    for (const s of schnuppen) {
+      const verlauf = himmel.createLinearGradient(s.x, s.y, s.x - s.vx * 9, s.y - s.vy * 9);
+      verlauf.addColorStop(0, "rgba(255,255,255,.9)");
+      verlauf.addColorStop(1, "rgba(255,255,255,0)");
+      himmel.globalAlpha = s.leben / 45;
+      himmel.strokeStyle = verlauf; himmel.lineWidth = 1.6;
+      himmel.beginPath(); himmel.moveTo(s.x, s.y); himmel.lineTo(s.x - s.vx * 9, s.y - s.vy * 9); himmel.stroke();
+      s.x += s.vx; s.y += s.vy; s.leben--;
+    }
+
+    wolke = wolke.filter(h => h.y > -40);
+    while (!ruhig && wolke.length < 10) wolke.push(schwebend(false));
+    for (const h of wolke) { h.x += h.vx; h.y += h.vy; herzForm(himmel, h.x, h.y, h.s, h.farbe, h.alpha); }
+
+    if (bluetenRegen && !ruhig && blueten.length < 90 && Math.random() < 0.6) {
+      blueten.push({
+        x: Math.random() * innerWidth, y: -20, vy: 0.7 + Math.random() * 1.2,
+        rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.05,
+        s: 5 + Math.random() * 6, farbe: zufall(BLATT_FARBEN), ph: Math.random() * 6.28,
+      });
+    }
+    blueten = blueten.filter(b => b.y < innerHeight + 30);
+    for (const b of blueten) {
+      b.y += b.vy; b.x += Math.sin(now / 700 + b.ph) * 0.7; b.rot += b.vr;
+      himmel.save();
+      himmel.globalAlpha = 0.85;
+      himmel.translate(b.x, b.y); himmel.rotate(b.rot);
+      himmel.fillStyle = b.farbe;
+      himmel.beginPath(); himmel.ellipse(0, 0, b.s, b.s * 0.55, 0, 0, 6.283); himmel.fill();
+      himmel.restore();
+    }
+    himmel.globalAlpha = 1;
+  }
+
+  // ---------- Vordergrund: Partikel-Herz, Namen, Feuerwerk ----------
+  let teilchen = [], modus = "aus", pAlpha = 0, pAlphaZiel = 0;
+  let funken = [];
+
+  function neuesTeilchen(x, y) {
+    const t = Math.random() * Math.PI * 2;
+    const r = Math.random() < 0.55 ? 1 : 0.2 + Math.random() * 0.8;
+    return {
+      x, y, vx: 0, vy: 0,
+      hx: herzX(t) * r, hy: herzY(t) * r,
+      tx: x, ty: y,
+      g: 0.9 + Math.random() * 1.5,
+      farbe: zufall(FARBEN),
+      ph: Math.random() * 6.28,
+    };
+  }
+
+  function teilchenInit() {
+    const n = innerWidth < 600 ? 520 : 820;
+    teilchen = Array.from({ length: n }, () => neuesTeilchen(Math.random() * innerWidth, Math.random() * innerHeight));
+  }
+
+  function herzschlag(now) {
+    if (ruhig) return 1;
+    const p = (now % 1150) / 1150;
+    const b = Math.exp(-Math.pow(p - 0.05, 2) / 0.0018) + 0.6 * Math.exp(-Math.pow(p - 0.22, 2) / 0.0018);
+    return 1 + 0.055 * b;
+  }
+
+  async function textZieleBerechnen() {
+    try { await document.fonts.load('700 80px "Caveat"'); } catch (e) {}
+    const W = innerWidth, H = innerHeight;
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    const schmal = W < 640;
+    const zeilen = schmal ? [SIE, "♥", ICH] : [`${SIE} ♥ ${ICH}`];
+    const gr = schmal ? Math.min(W / 3.6, 120) : Math.min(W / 7.5, 150);
+    x.font = `700 ${gr}px Caveat, cursive`;
+    x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#fff";
+    const lh = gr * 0.92, mitteY = H * (schmal ? 0.36 : 0.38);
+    const startY = mitteY - (zeilen.length - 1) * lh / 2;
+    zeilen.forEach((z, i) => x.fillText(z, W / 2, startY + i * lh));
+
+    const d = x.getImageData(0, 0, W, H).data;
+    const punkte = [];
+    const schritt = schmal ? 3 : 4;
+    for (let y = 0; y < H; y += schritt)
+      for (let xx = 0; xx < W; xx += schritt)
+        if (d[(y * W + xx) * 4 + 3] > 140) punkte.push([xx, y]);
+    for (let i = punkte.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [punkte[i], punkte[j]] = [punkte[j], punkte[i]]; }
+    if (!punkte.length) return;
+
+    const max = schmal ? 1100 : 1700;
+    while (teilchen.length < Math.min(punkte.length, max)) {
+      const p = neuesTeilchen(W / 2, H * 0.45);
+      const w = Math.random() * 6.28, v = 3 + Math.random() * 10;
+      p.vx = Math.cos(w) * v; p.vy = Math.sin(w) * v;
+      teilchen.push(p);
+    }
+    teilchen.forEach((p, i) => { const q = punkte[i % punkte.length]; p.tx = q[0]; p.ty = q[1]; });
+  }
+
+  let resizeTimer;
+  addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (modus === "text") textZieleBerechnen(); }, 250);
+  });
+
+  function herzFeuerwerk(cx, cy, tempo) {
+    if (ruhig) return;
+    const farbe = zufall(FARBEN);
+    for (let i = 0; i < 80; i++) {
+      const t = i / 80 * Math.PI * 2, sp = tempo * (0.95 + Math.random() * 0.1);
+      funken.push({ x: cx, y: cy, vx: herzX(t) * sp, vy: herzY(t) * sp, leben: 100 + Math.random() * 30, g: 1.4 + Math.random() * 1.2, farbe, art: "punkt" });
+    }
+    for (let i = 0; i < 20; i++) {
+      const w = Math.random() * 6.28, v = 1 + Math.random() * 3;
+      funken.push({ x: cx, y: cy, vx: Math.cos(w) * v, vy: Math.sin(w) * v, leben: 60 + Math.random() * 30, g: 1, farbe: "#fff", art: "punkt" });
+    }
+  }
+
+  function funkenRegen(cx, cy, n) {
+    if (ruhig) return;
+    for (let i = 0; i < n; i++) {
+      const w = Math.random() * 6.28, v = 1.5 + Math.random() * 5;
+      funken.push({ x: cx, y: cy, vx: Math.cos(w) * v, vy: Math.sin(w) * v - 2, leben: 70 + Math.random() * 40, g: 8 + Math.random() * 8, farbe: zufall(FARBEN), art: "herz", schwer: true });
+    }
+  }
+
+  // Tippen irgendwo = kleine Herzen
+  addEventListener("pointerdown", e => {
+    if (ruhig) return;
+    for (let i = 0; i < 6; i++) {
+      const w = -Math.PI / 2 + (Math.random() - 0.5) * 1.8, v = 1.5 + Math.random() * 3;
+      funken.push({ x: e.clientX, y: e.clientY, vx: Math.cos(w) * v, vy: Math.sin(w) * v, leben: 50 + Math.random() * 25, g: 7 + Math.random() * 6, farbe: zufall(FARBEN), art: "herz", schwer: true });
+    }
+  });
+
+  function fxZeichnen(now) {
+    fx.clearRect(0, 0, innerWidth, innerHeight);
+    pAlpha += (pAlphaZiel - pAlpha) * 0.03;
+
+    if (modus !== "aus") {
+      if (modus === "herz") {
+        const r = $("herzBox").getBoundingClientRect();
+        const s = r.width / 34, beat = herzschlag(now);
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2 - 2.5 * s;
+        for (const p of teilchen) { p.tx = cx + p.hx * s * beat; p.ty = cy + p.hy * s * beat; }
+      }
+
+      fx.globalCompositeOperation = "lighter";
+      for (const p of teilchen) {
+        if (ruhig && modus !== "frei") { p.x = p.tx; p.y = p.ty; }
+        else if (modus === "frei") { p.vx *= 0.96; p.vy *= 0.96; p.x += p.vx; p.y += p.vy; }
+        else {
+          const jx = modus === "text" ? Math.sin(now / 500 + p.ph) * 0.9 : 0;
+          const jy = modus === "text" ? Math.cos(now / 600 + p.ph) * 0.9 : 0;
+          p.vx += (p.tx + jx - p.x) * 0.035; p.vy += (p.ty + jy - p.y) * 0.035;
+          p.vx *= 0.85; p.vy *= 0.85;
+          p.x += p.vx; p.y += p.vy;
+        }
+        fx.globalAlpha = pAlpha * (0.55 + 0.45 * Math.sin(now / 350 + p.ph));
+        fx.fillStyle = p.farbe;
+        fx.beginPath(); fx.arc(p.x, p.y, p.g, 0, 6.283); fx.fill();
+      }
+      fx.globalCompositeOperation = "source-over";
+    }
+
+    funken = funken.filter(f => f.leben > 0);
+    for (const f of funken) {
+      f.x += f.vx; f.y += f.vy;
+      if (f.schwer) { f.vy += 0.1; f.vx *= 0.99; }
+      else { f.vx *= 0.965; f.vy *= 0.965; f.vy += 0.03; }
+      f.leben--;
+      const a = Math.max(0, Math.min(1, f.leben / 60));
+      if (f.art === "herz") herzForm(fx, f.x, f.y, f.g, f.farbe, a);
+      else {
+        fx.globalCompositeOperation = "lighter";
+        fx.globalAlpha = a; fx.fillStyle = f.farbe;
+        fx.beginPath(); fx.arc(f.x, f.y, f.g, 0, 6.283); fx.fill();
+        fx.globalCompositeOperation = "source-over";
+      }
+    }
+    fx.globalAlpha = 1;
+  }
+
+  function frame(now) {
+    himmelZeichnen(now);
+    fxZeichnen(now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

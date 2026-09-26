@@ -325,7 +325,28 @@
   const FRAGE    = "Willst du ganz offiziell meine Freundin sein?";
   const ZUSAMMEN_SEIT = "August 2025";
   const PS       = "// eigentlich sind wir schon verheiratet 💍";
+
+  // Optional: festes offizielles Datum, z.B. "24.09.2026, 18:42 Uhr".
+  // Leer lassen = wird automatisch beim ersten Ja gespeichert.
+  const OFFIZIELL_FEST = "25.09.2026, 22:50 Uhr";
   // ================================================
+
+  // Gespeicherten Zeitpunkt zurücksetzen: Link einmal mit ?reset am Ende öffnen
+  try { if (new URLSearchParams(location.search).has("reset")) localStorage.removeItem("offiziellSeit"); } catch (e) {}
+
+  function offiziellText() {
+    if (OFFIZIELL_FEST) return OFFIZIELL_FEST;
+    let ms = null;
+    try { ms = localStorage.getItem("offiziellSeit"); } catch (e) {}
+    if (!ms) {
+      ms = String(Date.now());
+      try { localStorage.setItem("offiziellSeit", ms); } catch (e) {}
+    }
+    const d = new Date(Number(ms));
+    const datum = d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const zeit = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    return `${datum}, ${zeit} Uhr`;
+  }
 
   const DATUM_TEXT = `${String(DATUM.tag).padStart(2, "0")}.${String(DATUM.monat).padStart(2, "0")}.${DATUM.jahr}`;
   const START = new Date(DATUM.jahr, DATUM.monat - 1, DATUM.tag, 0, 0, 0);
@@ -683,9 +704,8 @@
     modus = "text";
 
     await warte(1600);
-    const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
     $("seitZusammen").textContent = `// zusammen seit ${ZUSAMMEN_SEIT}`;
-    $("seit").textContent = `// offiziell seit ${heute}`;
+    $("seit").textContent = `// offiziell seit ${offiziellText()}`;
     const nochmal = $("nochmal");
     nochmal.style.visibility = "hidden";
     einblenden($("ende"));
